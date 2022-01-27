@@ -1,0 +1,2 @@
+outras versões:
+//div[@class = "coverButton" and contains(a,"Other editions")]/a/@href
