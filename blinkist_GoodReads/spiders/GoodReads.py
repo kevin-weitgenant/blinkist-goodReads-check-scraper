@@ -1,5 +1,7 @@
 import scrapy
 
+#provavelmente um erro com os links relativos, request.follow
+
 
 class GoodreadsSpider(scrapy.Spider):
     name = 'GoodReads'
@@ -13,26 +15,34 @@ class GoodreadsSpider(scrapy.Spider):
         titulos = []
         urls = []
         for titulo in response.xpath('//tr[@class = "bookalike review"]'):       
-            titulos.append(titulo.xpath('.//td[@class= "field title"]/div/a/@title').get())
+            titulos.append(titulo.xpath('.//td[@class= "field title"]/div/a/@title').get()) #probably not necessary
             urls.append(titulo.xpath('.//td[@class= "field title"]/div/a/@href').get())
-        urls = ["www.goodreads.com" + x for x in urls]
 
-        dictionary = {titulos[i]:urls[i] for i in range(len(titulos))}
-     
+        for url in urls:
+            yield response.follow(url = url, callback = self.parse_check_otherEditions)
+
         if next_page:
             yield response.follow(url=next_page, callback=self.parse)
 
-        yield {
-            "urls": dictionary
+    
+    def parse_check_otherEditions(self,response):   
+        
+        other_editions = response.xpath('//div[@class = "coverButton" and contains(a,"Other editions")]/a/@href').get()
+        
+        if other_editions:
+            yield response.follow(url=other_editions, callback=self.parse_otherEditions, meta = {"book_url": response.url})
+            
+
+
+    def parse_otherEditions(self,response):
+        
+        other_editions = response.xpath('//a[@class="bookTitle"]/text()').getall()
+        next_page = response.xpath("//a[@class = 'next_page']/@href").get()
+        
+        if next_page:
+            yield response.follow(url=next_page, callback=self.parse_otherEditions, meta = {"book_url": response.url})
+
+        yield{
+           response.request.meta["book_url"] : other_editions
         }
-        
-        
-    #     yield response.follow(url = urls[0], callback = self.parse_check_otherEditions, meta = [titulos,urls]  )
 
-    # def parse_check_otherEditions(self,response):
-    #     if response.xpath('//div[@class = "coverButton" and contains(a,"Other editions")]/a/@href'):
-    #         pass
-
-
-    # def parse_otherEditions(self,response):
-    #     pass
