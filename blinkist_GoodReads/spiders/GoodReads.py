@@ -9,14 +9,14 @@ class GoodreadsSpider(scrapy.Spider):
         
         next_page = response.xpath("//a[@class = 'next_page']/@href").get()
 
-        titulos = []
+        titles = []
         urls = []
-        for titulo in response.xpath('//tr[@class = "bookalike review"]'):       
-            titulos.append(titulo.xpath('.//td[@class= "field title"]/div/a/@title').get()) #probably not necessary
-            urls.append(titulo.xpath('.//td[@class= "field title"]/div/a/@href').get())
+        for title in response.xpath('//tr[@class = "bookalike review"]'):       
+            titles.append(title.xpath('.//td[@class= "field title"]/div/a/@title').get()) #probably not necessary
+            urls.append(title.xpath('.//td[@class= "field title"]/div/a/@href').get())
 
-        for url in urls:
-            yield response.follow(url = url, callback = self.parse_check_otherEditions)   #get all possible names for the book
+        for x in range(len(urls)):
+            yield response.follow(url = urls[x], callback = self.parse_check_otherEditions, meta = {"title": titles[x] })   #get all possible names for the book
 
         if next_page:
             yield response.follow(url=next_page, callback=self.parse) #pagination
@@ -27,7 +27,7 @@ class GoodreadsSpider(scrapy.Spider):
         other_editions = response.xpath('//div[@class = "coverButton" and contains(a,"Other editions")]/a/@href').get()
         
         if other_editions:
-            yield response.follow(url=other_editions, callback=self.parse_otherEditions, meta = {"book_url": response.url})
+            yield response.follow(url=other_editions, callback=self.parse_otherEditions, meta = {"book_url": response.url, "title": response.request.meta["title"] })
             
     def parse_otherEditions(self,response): #function to get all possible names for the book(with pagination)
         
@@ -35,9 +35,12 @@ class GoodreadsSpider(scrapy.Spider):
         next_page = response.xpath("//a[@class = 'next_page']/@href").get()
         
         if next_page: #pagination
-            yield response.follow(url=next_page, callback=self.parse_otherEditions, meta = {"book_url":  response.request.meta["book_url"]})
+            yield response.follow(url=next_page, callback=self.parse_otherEditions, meta = {"book_url":  response.request.meta["book_url"]
+                                                                                        ,"title": response.request.meta["title"] })
 
         yield{
-           response.request.meta["book_url"] : other_editions
+           "title" : response.request.meta["title"],
+           "url": response.request.meta["book_url"],
+           "otherEditions": other_editions    
         }
 
